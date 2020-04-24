@@ -1,73 +1,101 @@
 #!/usr/bin/env python3
 
+# Print and/or save CloudFormation info
+# Set region to AWS region CloudFormation stack is in
+
 import boto3
+import os
+import json
 
-def describe_cf_stacks():
-    client = boto3.client('cloudformation')
-    paginator = client.get_paginator('describe_stacks')
-    response = paginator.paginate()
-    for each in response:
-        stack = each['Stacks']
-        for i in stack:
-                try:
-                        print('Stack Name: ',i['StackName'])
-                        print('Description: ',i['Description'])
-                        print('Creation Time: ',i['CreationTime'])
-                        print('Deletion Time: ',i['DeletionTime'])
-                        print('Stack Status: ',i['StackStatus'], '\n')
-                except KeyError:
-                        print('\n')
-                        
-def search_cf_stacks(param):
-    client = boto3.client('cloudformation')
-    paginator = client.get_paginator('describe_stacks')
-    response = paginator.paginate()
-    for each in response:
-            stack = each['Stacks']
-            for i in stack:
-                if param in i['StackName']:
-                        try:
-                                print('Stack Name: ',i['StackName'])
-                                print('Description: ',i['Description'])
-                                print('Creation Time: ',i['CreationTime'])
-                                print('Deletion Time: ',i['DeletionTime'])
-                                print('Stack Status: ',i['StackStatus'], '\n')
-                        except KeyError:
-                                print('\n')
+region = ''
 
-def describe_stack_resources(param):
-    client = boto3.client('cloudformation')             
-    response = client.describe_stack_resources(StackName = param)
-    new_dict = {k: v for k,v in response.items()}
-    result = new_dict['StackResources']
-    print('Stack Name: ',result[0]['StackName'])
-    print('Stack Id: ',result[0]['StackId'])
-    print('Timestamp: ',result[0]['Timestamp'], '\n')
-    for each in result:
-        stack_dict = {k: v for k, v in each.items()}
-        print('Resource Type: ',each['ResourceType'])
-        print('Logical Id: ',each['LogicalResourceId'])
-        print('Physical Resource Id: ',each['PhysicalResourceId'])
-        print('Resource Type: ',each['ResourceType'])
-        print('Status: ',each['ResourceStatus'], '\n')
-
-print('Enter selection: ','\n', '1. Drescribe all CF stacks', '\n', '2. Search for CF stack', '\n', '3. List CF resources')
-
-while True:
+def main():
+        param = input(str('Enter CloudFormation stack to search for: '))
+        print('Searching...', flush=True)
+        result = search_cf_stacks(param)
         try:
-                selection = int(input("Make selection: "))
-        except ValueError:
-                print("Invalid choice, select 1, 2 or 3")
-                continue
+                info = describe_stack_resources(result)
+                file_save(info)
+        except IndexError:
+                pass
+
+# Search for and select CF stack 
+def search_cf_stacks(param):
+        client = boto3.client('cloudformation')
+        paginator = client.get_paginator('describe_stacks')
+        stacklist = []
+        for response in paginator.paginate():
+                for each in response['Stacks']:
+                        if param in each['StackName']:
+                                stacklist.append(each['StackName'])
+                        else:
+                                pass
+        for index, value in enumerate(stacklist, 1):
+                print("{}.{}".format(index, value))
+        choose = int(input("\nEnter stack number to view resources: "))-1
+        if choose < 0 or choose > (len(stacklist)-1):
+                print('Invalid Choice')
+        try:
+                chosen = stacklist[choose]
+                print(chosen)
+        except IndexError:
+                print('Number not in range')
+        return(chosen)
+                        
+# Display all stack resources of CF stack (by name)
+def describe_stack_resources(param):
+        client = boto3.client('cloudformation')             
+        response = client.describe_stack_resources(StackName = param)
+        new_dict = {k: v for k,v in response.items()}
+        result = new_dict['StackResources']
+        print('Stack Name: ',result[0]['StackName'])
+        print('Stack Id: ',result[0]['StackId'])
+        print('Timestamp: ',result[0]['Timestamp'], '\n')
+        for each in result:
+                try:
+                        stack_dict = {k: v for k, v in each.items()}
+                        print('Resource Type: ',each['ResourceType'])
+                        print('Logical Id: ',each['LogicalResourceId'])
+                        print('Physical Resource Id: ',each['PhysicalResourceId'])
+                        print('Resource Type: ',each['ResourceType'])
+                        print('Status: ',each['ResourceStatus'], '\n')
+                except KeyError:
+                        print('/n')
+        return(result[0]['StackName'],result)
+
+# Save results to file 
+def file_save(param):
+        save = input('Save as file (y/n)?').lower()
+        if save == 'y':
+                reply = input(str('Current directory is "' + (os.getcwd()) + '" save here (y/n)?')).lower().strip()
+                if reply == 'y':
+                        filename = input(str('Enter filename to save: '))
+                        with open(filename + '.txt', 'w') as filesave:
+                                print('Saving to "' + (os.getcwd()) + '" - Done')
+                                json.dump(param, filesave, indent=4, sort_keys=True, default=str)
+                elif reply == 'n':
+                        while True:
+                                path = input(str('Enter location to save: ')).strip()
+                                try:
+                                        os.chdir(path)
+                                except FileNotFoundError:
+                                        print('Invalid path')
+
+                                try:
+                                        filename2 = input(str('Enter filename to save: ')).strip()
+                                        with open(filename2 + '.txt', 'w') as filesave:
+                                                print('Saving to "' + (os.getcwd()) + '" - Done')
+                                                json.dump(param, filesave, indent=4, sort_keys=True, default=str)
+                                                break
+                                except PermissionError:
+                                        print('Permission denied')
+                else:
+                        print('Please select (y)es or (n)o')
+        elif save == 'n':
+                return
         else:
-                break
-if selection == 1:
-        describe_cf_stacks()
-elif selection == 2:
-        stack = input("Search: ")
-        search_cf_stacks(stack)
-elif selection == 3:
-        resource = input("Enter stack name: ")
-        describe_stack_resources(resource)
-else:
-        print("Invalid selection")
+                print('Please select (y)es or (n)o')
+                return
+        
+if __name__ == "__main__":
+        main()
