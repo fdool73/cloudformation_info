@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# Print and/or save CloudFormation info
-# Set region to AWS region CloudFormation stack is in
+''' Print and/or save CloudFormation info
+'''
 
 import boto3
 import os
@@ -19,7 +19,9 @@ def main():
         except IndexError:
                 pass
 
-# Search for and select CF stack 
+''' Search for and select CF stack 
+'''
+
 def search_cf_stacks(param):
         client = boto3.client('cloudformation')
         paginator = client.get_paginator('describe_stacks')
@@ -31,7 +33,7 @@ def search_cf_stacks(param):
                         else:
                                 pass
         for index, value in enumerate(stacklist, 1):
-                print("{}.{}".format(index, value))
+                print(f"{index}.{value}")
         choose = int(input("\nEnter stack number to view resources: "))-1
         if choose < 0 or choose > (len(stacklist)-1):
                 print('Invalid Choice')
@@ -42,7 +44,9 @@ def search_cf_stacks(param):
                 print('Number not in range')
         return(chosen)
                         
-# Display all stack resources of CF stack (by name)
+''' Display all stack resources of CF stack (by name)
+'''
+
 def describe_stack_resources(param):
         client = boto3.client('cloudformation')             
         response = client.describe_stack_resources(StackName = param)
@@ -53,7 +57,7 @@ def describe_stack_resources(param):
         print('Timestamp: ',result[0]['Timestamp'], '\n')
         for each in result:
                 try:
-                        stack_dict = {k: v for k, v in each.items()}
+                        #stack_dict = {k: v for k, v in each.items()}
                         print('Resource Type: ',each['ResourceType'])
                         print('Logical Id: ',each['LogicalResourceId'])
                         print('Physical Resource Id: ',each['PhysicalResourceId'])
@@ -63,7 +67,9 @@ def describe_stack_resources(param):
                         print('/n')
         return(result[0]['StackName'],result)
 
-# Save results to file 
+''' Save results to file
+''' 
+
 def file_save(param):
         save = input('Save as file (y/n)?').lower()
         if save == 'y':
